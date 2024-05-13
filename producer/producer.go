@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/joho/godotenv"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -9,6 +10,13 @@ import (
 	"os"
 	"time"
 )
+
+// RabbitMsg Define a struct to be sent via Rabbit Mq
+type RabbitMsg struct {
+	MsgId   int    `json:"msg_id"`
+	Message string `json:"message"`
+	SentBy  string `json:"sent_by"`
+}
 
 func main() {
 	err := godotenv.Load(".env")
@@ -53,8 +61,20 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
-	body := "Demo Message to be published to Rabbit Mq"
+	// Instantiate the RabbitMsg struct
+	rabbitBodyFirst := RabbitMsg{
+		MsgId:   1,
+		Message: "Hello. This is the first message",
+		SentBy:  "Rahul",
+	}
 
+	// Marshal to Json
+	jsonBody, err := json.Marshal(rabbitBodyFirst)
+	if err != nil {
+		log.Fatalf("Error marshalling the Rabbit Msg struct: %s", err)
+	}
+
+	// Publish the message in Json format
 	err = ch.PublishWithContext(
 		ctx,
 		"",     // exchange
@@ -62,8 +82,8 @@ func main() {
 		false,  // mandatory
 		false,  // immediate
 		amqp.Publishing{
-			ContentType: "text/plain",
-			Body:        []byte(body),
+			ContentType: "application/json",
+			Body:        jsonBody,
 		},
 	)
 
